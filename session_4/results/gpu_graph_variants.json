@@ -1,0 +1,22 @@
+{
+  "hardware": "GPU",
+  "device_name": "NVIDIA L4",
+  "session": "3",
+  "batch_size": 256,
+  "seq_len": 128,
+  "timestamp": "2026-02-27T17:39:55.004399+00:00",
+  "results": {
+    "StaticFF": {
+      "throughput": 2645.4,
+      "latency_ms": 96.77
+    },
+    "DynamicFF": {
+      "throughput": 2590.4,
+      "latency_ms": 98.83
+    },
+    "StaticEquivalentFF": {
+      "throughput": 2550.6,
+      "latency_ms": 100.37
+    }
+  }
+}

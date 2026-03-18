@@ -1,0 +1,22 @@
+{
+  "hardware": "TPU",
+  "device_name": "v5litepod-1",
+  "session": "3",
+  "batch_size": 256,
+  "seq_len": 128,
+  "timestamp": "2026-02-27T17:41:28.658639+00:00",
+  "results": {
+    "StaticFF": {
+      "throughput": 23605.1,
+      "latency_ms": 10.85
+    },
+    "DynamicFF": {
+      "throughput": 9424.8,
+      "latency_ms": 27.16
+    },
+    "StaticEquivalentFF": {
+      "throughput": 23284.0,
+      "latency_ms": 10.99
+    }
+  }
+}

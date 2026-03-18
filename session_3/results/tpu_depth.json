@@ -1,0 +1,52 @@
+{
+  "hardware": "TPU",
+  "device_name": "TPU",
+  "session": "6",
+  "batch_size": 64,
+  "seq_len": 128,
+  "n_layers_sweep": [
+    1,
+    2,
+    4,
+    6,
+    8,
+    12,
+    16,
+    24
+  ],
+  "timestamp": "2026-02-28T00:44:08.317143+00:00",
+  "results": {
+    "1": {
+      "throughput": 6032.7,
+      "latency_ms": 10.61
+    },
+    "2": {
+      "throughput": 3105.5,
+      "latency_ms": 20.61
+    },
+    "4": {
+      "throughput": 1587.1,
+      "latency_ms": 40.33
+    },
+    "6": {
+      "throughput": 1059.4,
+      "latency_ms": 60.41
+    },
+    "8": {
+      "throughput": 785.7,
+      "latency_ms": 81.45
+    },
+    "12": {
+      "throughput": 518.8,
+      "latency_ms": 123.37
+    },
+    "16": {
+      "throughput": 385.5,
+      "latency_ms": 166.02
+    },
+    "24": {
+      "throughput": 254.5,
+      "latency_ms": 251.47
+    }
+  }
+}

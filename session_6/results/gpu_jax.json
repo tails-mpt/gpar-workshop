@@ -1,0 +1,70 @@
+{
+  "hardware": "GPU",
+  "framework": "JAX/Flax",
+  "device_name": "cuda:0",
+  "jax_version": "0.9.0.1",
+  "flax_version": "0.12.4",
+  "session": "5",
+  "batch_sizes": [
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "seq_len": 128,
+  "timestamp": "2026-02-28T00:38:16.882987+00:00",
+  "compile_times_s": {
+    "4": 15.635,
+    "8": 18.019,
+    "16": 19.525,
+    "32": 22.552,
+    "64": 18.807,
+    "128": 19.545,
+    "256": 20.43,
+    "512": 22.036,
+    "1024": 26.533
+  },
+  "results": {
+    "4": {
+      "throughput": 3186.4,
+      "latency_ms": 1.26
+    },
+    "8": {
+      "throughput": 4409.2,
+      "latency_ms": 1.81
+    },
+    "16": {
+      "throughput": 5946.4,
+      "latency_ms": 2.69
+    },
+    "32": {
+      "throughput": 6070.1,
+      "latency_ms": 5.27
+    },
+    "64": {
+      "throughput": 5304.1,
+      "latency_ms": 12.07
+    },
+    "128": {
+      "throughput": 4822.7,
+      "latency_ms": 26.54
+    },
+    "256": {
+      "throughput": 4660.0,
+      "latency_ms": 54.94
+    },
+    "512": {
+      "throughput": 4571.1,
+      "latency_ms": 112.01
+    },
+    "1024": {
+      "throughput": 4463.0,
+      "latency_ms": 229.44
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "hardware": "TPU",
+  "framework": "JAX/Flax",
+  "device_name": "TPU_0(process=0,(0,0,0,0))",
+  "jax_version": "0.9.0.1",
+  "flax_version": "0.12.4",
+  "session": "5",
+  "batch_sizes": [
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "seq_len": 128,
+  "timestamp": "2026-02-28T00:36:50.890950+00:00",
+  "compile_times_s": {
+    "4": 2.472,
+    "8": 3.554,
+    "16": 3.828,
+    "32": 3.868,
+    "64": 2.769,
+    "128": 3.27,
+    "256": 3.277,
+    "512": 3.455,
+    "1024": 3.472
+  },
+  "results": {
+    "4": {
+      "throughput": 8453.6,
+      "latency_ms": 0.47
+    },
+    "8": {
+      "throughput": 15867.0,
+      "latency_ms": 0.5
+    },
+    "16": {
+      "throughput": 26983.3,
+      "latency_ms": 0.59
+    },
+    "32": {
+      "throughput": 38688.6,
+      "latency_ms": 0.83
+    },
+    "64": {
+      "throughput": 39159.5,
+      "latency_ms": 1.63
+    },
+    "128": {
+      "throughput": 36405.2,
+      "latency_ms": 3.52
+    },
+    "256": {
+      "throughput": 30820.3,
+      "latency_ms": 8.31
+    },
+    "512": {
+      "throughput": 28620.0,
+      "latency_ms": 17.89
+    },
+    "1024": {
+      "throughput": 28418.1,
+      "latency_ms": 36.03
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "hardware": "GPU",
+  "device_name": "NVIDIA L4",
+  "session": "4",
+  "dtypes_tested": [
+    "fp32",
+    "fp16",
+    "bf16"
+  ],
+  "batch_sizes": [
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "seq_len": 128,
+  "timestamp": "2026-02-27T18:17:03.101327+00:00",
+  "results": {
+    "fp32": {
+      "32": {
+        "throughput": 2903.3,
+        "latency_ms": 11.02,
+        "peak_vram_mb": 296.1
+      },
+      "64": {
+        "throughput": 2705.0,
+        "latency_ms": 23.66,
+        "peak_vram_mb": 530.9
+      },
+      "128": {
+        "throughput": 2637.0,
+        "latency_ms": 48.54,
+        "peak_vram_mb": 979.7
+      },
+      "256": {
+        "throughput": 2583.3,
+        "latency_ms": 99.1,
+        "peak_vram_mb": 1852.3
+      },
+      "512": {
+        "throughput": 2578.8,
+        "latency_ms": 198.54,
+        "peak_vram_mb": 3596.8
+      },
+      "1024": {
+        "throughput": 2524.0,
+        "latency_ms": 405.71,
+        "peak_vram_mb": 7087.0
+      }
+    },
+    "fp16": {
+      "32": {
+        "throughput": 7205.8,
+        "latency_ms": 4.44,
+        "peak_vram_mb": 233.4
+      },
+      "64": {
+        "throughput": 6908.9,
+        "latency_ms": 9.26,
+        "peak_vram_mb": 400.2
+      },
+      "128": {
+        "throughput": 5915.5,
+        "latency_ms": 21.64,
+        "peak_vram_mb": 715.3
+      },
+      "256": {
+        "throughput": 5880.4,
+        "latency_ms": 43.53,
+        "peak_vram_mb": 1319.1
+      },
+      "512": {
+        "throughput": 5821.6,
+        "latency_ms": 87.95,
+        "peak_vram_mb": 2548.8
+      },
+      "1024": {
+        "throughput": 5497.1,
+        "latency_ms": 186.28,
+        "peak_vram_mb": 5032.9
+      }
+    },
+    "bf16": {
+      "32": {
+        "throughput": 7207.7,
+        "latency_ms": 4.44,
+        "peak_vram_mb": 232.4
+      },
+      "64": {
+        "throughput": 6902.3,
+        "latency_ms": 9.27,
+        "peak_vram_mb": 400.3
+      },
+      "128": {
+        "throughput": 5730.2,
+        "latency_ms": 22.34,
+        "peak_vram_mb": 715.9
+      },
+      "256": {
+        "throughput": 5642.8,
+        "latency_ms": 45.37,
+        "peak_vram_mb": 1319.1
+      },
+      "512": {
+        "throughput": 5591.2,
+        "latency_ms": 91.57,
+        "peak_vram_mb": 2548.8
+      },
+      "1024": {
+        "throughput": 5258.8,
+        "latency_ms": 194.72,
+        "peak_vram_mb": 5032.9
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "hardware": "GPU",
+  "device_name": "NVIDIA L4",
+  "session": "6",
+  "batch_size": 64,
+  "seq_len": 128,
+  "n_layers_sweep": [
+    1,
+    2,
+    4,
+    6,
+    8,
+    12,
+    16,
+    24
+  ],
+  "timestamp": "2026-02-28T00:39:41.016125+00:00",
+  "results": {
+    "1": {
+      "throughput": 2635.2,
+      "peak_vram_mb": 530.9
+    },
+    "2": {
+      "throughput": 1244.5,
+      "peak_vram_mb": 889.6
+    },
+    "4": {
+      "throughput": 599.0,
+      "peak_vram_mb": 1606.2
+    },
+    "6": {
+      "throughput": 392.7,
+      "peak_vram_mb": 2322.8
+    },
+    "8": {
+      "throughput": 294.5,
+      "peak_vram_mb": 3039.4
+    },
+    "12": {
+      "throughput": 198.7,
+      "peak_vram_mb": 4472.6
+    },
+    "16": {
+      "throughput": 151.7,
+      "peak_vram_mb": 5891.1
+    },
+    "24": {
+      "throughput": 101.1,
+      "peak_vram_mb": 8772.1
+    }
+  }
+}

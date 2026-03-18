@@ -1,0 +1,73 @@
+{
+  "hardware": "TPU",
+  "device_name": "TPU",
+  "session": "4",
+  "dtypes_tested": [
+    "fp32",
+    "bf16"
+  ],
+  "batch_sizes": [
+    32,
+    64,
+    128,
+    256,
+    512,
+    1024
+  ],
+  "seq_len": 128,
+  "timestamp": "2026-02-27T18:21:16.755885+00:00",
+  "results": {
+    "fp32": {
+      "32": {
+        "throughput": 2947.1,
+        "latency_ms": 10.86
+      },
+      "64": {
+        "throughput": 5943.6,
+        "latency_ms": 10.77
+      },
+      "128": {
+        "throughput": 11896.9,
+        "latency_ms": 10.76
+      },
+      "256": {
+        "throughput": 23657.2,
+        "latency_ms": 10.82
+      },
+      "512": {
+        "throughput": 47323.0,
+        "latency_ms": 10.82
+      },
+      "1024": {
+        "throughput": 95217.2,
+        "latency_ms": 10.75
+      }
+    },
+    "bf16": {
+      "32": {
+        "throughput": 2886.6,
+        "latency_ms": 11.09
+      },
+      "64": {
+        "throughput": 5783.7,
+        "latency_ms": 11.07
+      },
+      "128": {
+        "throughput": 11579.2,
+        "latency_ms": 11.05
+      },
+      "256": {
+        "throughput": 23070.8,
+        "latency_ms": 11.1
+      },
+      "512": {
+        "throughput": 45955.7,
+        "latency_ms": 11.14
+      },
+      "1024": {
+        "throughput": 92373.2,
+        "latency_ms": 11.09
+      }
+    }
+  }
+}
