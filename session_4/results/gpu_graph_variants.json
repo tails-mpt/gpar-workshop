@@ -1,22 +1,42 @@
 {
   "hardware": "GPU",
   "device_name": "NVIDIA L4",
-  "session": "3",
+  "session": "4",
   "batch_size": 256,
   "seq_len": 128,
-  "timestamp": "2026-02-27T17:39:55.004399+00:00",
+  "timestamp": "2026-03-04T01:16:35.565213+00:00",
   "results": {
     "StaticFF": {
-      "throughput": 2645.4,
-      "latency_ms": 96.77
+      "throughput": 2037.6,
+      "latency_ms": 125.64
     },
     "DynamicFF": {
-      "throughput": 2590.4,
-      "latency_ms": 98.83
+      "throughput": 1198.8,
+      "latency_ms": 213.54
     },
     "StaticEquivalentFF": {
-      "throughput": 2550.6,
-      "latency_ms": 100.37
+      "throughput": 1144.4,
+      "latency_ms": 223.69
+    },
+    "PaddingMask": {
+      "throughput": 1162.5,
+      "latency_ms": 220.22
+    },
+    "EarlyExitDynamic": {
+      "throughput": 1038.0,
+      "latency_ms": 246.63
+    },
+    "EarlyExitStatic": {
+      "throughput": 603.2,
+      "latency_ms": 424.4
+    },
+    "FixedLoopFF": {
+      "throughput": 406.7,
+      "latency_ms": 629.46
+    },
+    "VariableLoopFF": {
+      "throughput": 806.0,
+      "latency_ms": 317.6
     }
   }
 }
