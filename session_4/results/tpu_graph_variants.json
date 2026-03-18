@@ -1,22 +1,42 @@
 {
   "hardware": "TPU",
   "device_name": "v5litepod-1",
-  "session": "3",
+  "session": "4",
   "batch_size": 256,
   "seq_len": 128,
-  "timestamp": "2026-02-27T17:41:28.658639+00:00",
+  "timestamp": "2026-03-04T01:20:34.187303+00:00",
   "results": {
     "StaticFF": {
-      "throughput": 23605.1,
-      "latency_ms": 10.85
+      "throughput": 24017.2,
+      "latency_ms": 10.66
     },
     "DynamicFF": {
-      "throughput": 9424.8,
-      "latency_ms": 27.16
+      "throughput": 9453.4,
+      "latency_ms": 27.08
     },
     "StaticEquivalentFF": {
-      "throughput": 23284.0,
-      "latency_ms": 10.99
+      "throughput": 23805.5,
+      "latency_ms": 10.75
+    },
+    "PaddingMask": {
+      "throughput": 23960.4,
+      "latency_ms": 10.68
+    },
+    "EarlyExitDynamic": {
+      "throughput": 7522.1,
+      "latency_ms": 34.03
+    },
+    "EarlyExitStatic": {
+      "throughput": 18576.8,
+      "latency_ms": 13.78
+    },
+    "FixedLoopFF": {
+      "throughput": 15565.4,
+      "latency_ms": 16.45
+    },
+    "VariableLoopFF": {
+      "throughput": 15520.3,
+      "latency_ms": 16.49
     }
   }
 }

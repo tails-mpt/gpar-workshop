@@ -1,10 +1,11 @@
 {
   "hardware": "TPU",
   "device_name": "TPU",
-  "session": "4",
+  "session": "5",
   "dtypes_tested": [
     "fp32",
-    "bf16"
+    "bf16",
+    "int8"
   ],
   "batch_sizes": [
     32,
@@ -15,59 +16,67 @@
     1024
   ],
   "seq_len": 128,
-  "timestamp": "2026-02-27T18:21:16.755885+00:00",
+  "timestamp": "2026-03-04T01:24:07.205266+00:00",
   "results": {
     "fp32": {
       "32": {
-        "throughput": 2947.1,
-        "latency_ms": 10.86
+        "throughput": 3005.8,
+        "latency_ms": 10.65
       },
       "64": {
-        "throughput": 5943.6,
-        "latency_ms": 10.77
+        "throughput": 6070.0,
+        "latency_ms": 10.54
       },
       "128": {
-        "throughput": 11896.9,
-        "latency_ms": 10.76
+        "throughput": 12174.9,
+        "latency_ms": 10.51
       },
       "256": {
-        "throughput": 23657.2,
-        "latency_ms": 10.82
+        "throughput": 24296.7,
+        "latency_ms": 10.54
       },
       "512": {
-        "throughput": 47323.0,
-        "latency_ms": 10.82
+        "throughput": 48613.6,
+        "latency_ms": 10.53
       },
       "1024": {
-        "throughput": 95217.2,
-        "latency_ms": 10.75
+        "throughput": 97748.9,
+        "latency_ms": 10.48
       }
     },
     "bf16": {
       "32": {
-        "throughput": 2886.6,
-        "latency_ms": 11.09
+        "throughput": 2964.7,
+        "latency_ms": 10.79
       },
       "64": {
-        "throughput": 5783.7,
-        "latency_ms": 11.07
+        "throughput": 5937.6,
+        "latency_ms": 10.78
       },
       "128": {
-        "throughput": 11579.2,
-        "latency_ms": 11.05
+        "throughput": 11873.2,
+        "latency_ms": 10.78
       },
       "256": {
-        "throughput": 23070.8,
-        "latency_ms": 11.1
+        "throughput": 23649.5,
+        "latency_ms": 10.82
       },
       "512": {
-        "throughput": 45955.7,
-        "latency_ms": 11.14
+        "throughput": 47458.0,
+        "latency_ms": 10.79
       },
       "1024": {
-        "throughput": 92373.2,
-        "latency_ms": 11.09
+        "throughput": 94521.8,
+        "latency_ms": 10.83
       }
+    },
+    "int8": {
+      "32": null,
+      "64": null,
+      "128": null,
+      "256": null,
+      "512": null,
+      "1024": null
     }
   }
 }
