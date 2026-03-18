@@ -210,7 +210,9 @@ native to TPU and the compilation pipeline is more optimised for that target.
 ![Throughput chart](assets/session_6_chart_throughput.png)
 
 **GPU panel:** JAX/Flax sits above the PyTorch line across all batch sizes.
-Both lines are roughly flat — GPU throughput barely scales with batch size.
+JAX peaks at batch=32 (~6,070 s/s) then declines to ~4,460 s/s at batch=1024 — a
+characteristic of XLA whole-graph fusion hitting bandwidth limits at larger footprints.
+PyTorch is roughly flat from batch=16 onward (~2,600–2,900 s/s).
 
 **TPU panel:** JAX peaks at batch=32–64 (~39k samples/sec) and declines. PyTorch/XLA
 rises linearly to ~95k samples/sec at batch=1024. The two lines cross between

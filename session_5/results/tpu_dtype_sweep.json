@@ -1,6 +1,6 @@
 {
   "hardware": "TPU",
-  "device_name": "TPU",
+  "device_name": "v5litepod-1",
   "session": "5",
   "dtypes_tested": [
     "fp32",

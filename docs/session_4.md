@@ -102,7 +102,7 @@ class StaticEquivalentFF(nn.Module):
 |---|---:|---:|---:|---:|
 | StaticFF | 2,038 | 125.6 | **24,017** | 10.7 |
 | DynamicFF | 1,199 | 213.5 | **9,453** | 27.1 |
-| StaticEquivalentFF | 1,144 | 223.7 | **23,806** | 10.7 |
+| StaticEquivalentFF | 1,144 | 223.7 | **23,806** | 10.8 |
 
 ### Relative throughput (vs StaticFF baseline)
 
@@ -138,9 +138,10 @@ StaticEquivalentFF.
 ![Latency Chart](assets/session_4_chart_latency.png)
 
 **What the chart shows:**
-TPU DynamicFF latency triples (10.7 ms → 27.1 ms) while GPU latency roughly doubles
-(125.6 ms → 213.5 ms). StaticEquivalentFF recovers the TPU to 10.7 ms but leaves the
-GPU latency unchanged at 223.7 ms.
+TPU DynamicFF latency rises **2.5×** (10.7 ms → 27.1 ms) while GPU latency increases
+**~1.7×** (125.6 ms → 213.5 ms). StaticEquivalentFF recovers the TPU to 10.8 ms but leaves GPU
+latency elevated at 223.7 ms — slightly worse than DynamicFF's 213.5 ms because
+`torch.where` computes `-out` unconditionally, whereas DynamicFF may skip that path.
 
 ---
 
@@ -151,7 +152,7 @@ jumps from 10.7 ms to 27.1 ms — a 2.5× slowdown. The cost equals adding more 
 the original compute budget per step.
 
 **`torch.where` recovers 98.5% of the TPU penalty.** The condition stays inside the XLA
-graph. No intermediate sync is required. Latency returns to 10.7 ms.
+graph. No intermediate sync is required. Latency returns to 10.8 ms.
 
 **GPU: DynamicFF also costs ~41%, and `torch.where` does not help.** In eager mode,
 evaluating `out.mean() > 0` requires a CUDA kernel to complete, a scalar to be read back
@@ -181,6 +182,19 @@ All benchmarks use `batch=256, seq_len=128` except where noted.
 | B2: Early exit | EarlyExitStatic | 603 | 18,577 | 30.8× |
 | B3: Ragged batches | FixedLoopFF | 407 | 15,565 | 38.2× |
 | B3: Ragged batches | VariableLoopFF | 806 | 15,520 | 19.3× |
+
+#### Chart 3 — Part B realistic scenarios
+
+![Realistic Scenarios Chart](assets/session_4_chart_scenarios.png)
+
+**What the chart shows:**
+The TPU baseline (StaticFF, 24,017 s/s) stays nearly intact for `PaddingMask` — the most
+common real-world NLP pattern is essentially free. Both early-exit variants visually split the
+story: `EarlyExitDynamic` collapses the TPU bar to its worst point in this session (7,522 s/s)
+while `EarlyExitStatic` partially recovers it (18,577 s/s) at the cost of crushing the GPU bar
+(603 s/s). The two loop variants (`FixedLoopFF`, `VariableLoopFF`) show near-identical TPU
+bars — XLA's compilation cache absorbs the variable-length overhead — while the GPU bars
+diverge sharply: the variable loop exits early and nearly doubles GPU throughput.
 
 ---
 

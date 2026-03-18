@@ -14,8 +14,11 @@ The Transformer encoder block from Session 1 is re-run across six batch sizes
 - **INT8** — 8-bit integer quantisation (GPU: dynamic quantisation on CPU; TPU: errored)
 
 The outcome diverges between devices and between formats. On the GPU, FP16 and BF16 each
-deliver roughly **2.0–2.1× throughput** over FP32 with a simultaneous **21–29% VRAM
-reduction** (scaling with batch size: ~21% at batch=32, converging to ~29% at batch≥256). On the TPU, which advertises native BF16 MXUs, BF16 runs **~2.7% slower**
+deliver roughly **2.1–2.5× throughput** over FP32 with a simultaneous **21–29% VRAM
+reduction** (scaling with batch size: ~21% at batch=32, converging to ~29% at batch≥256).
+The speedup peaks at batch=32–64 (~2.5×) and settles to ~2.1–2.3× at batch≥128 as
+Tensor Core efficiency is diluted by non-matmul overhead at larger tensor footprints.
+On the TPU, which advertises native BF16 MXUs, BF16 runs **~1.4–3.3% slower** (average ~2.4%)
 than FP32 on v5litepod in this configuration. GPU INT8 (`torch.ao.quantization.quantize_dynamic`)
 executes on CPU rather than GPU, yielding ~400–498 samples/sec — a measurement of
 CPU-based dynamic quantisation, not GPU INT8 inference.
@@ -81,12 +84,12 @@ Same devices as Sessions 1–4. See [`session_1.md`](session_1.md) for full hard
 
 | Batch | FP32 | FP16 | BF16 | FP16 Speedup | BF16 Speedup |
 |------:|-----:|-----:|-----:|-------------:|-------------:|
-| 32 | 1,262 | 2,634 | 2,668 | 2.09× | 2.11× |
-| 64 | 1,268 | 2,639 | 2,878 | 2.08× | 2.27× |
-| 128 | 1,206 | 2,472 | 2,451 | 2.05× | 2.03× |
-| 256 | 1,191 | 2,505 | 2,460 | 2.10× | 2.07× |
-| 512 | 1,202 | 2,516 | 2,447 | 2.09× | 2.04× |
-| 1,024 | 1,146 | 2,410 | 2,323 | 2.10× | 2.03× |
+| 32 | 2,908 | 7,141 | 7,228 | 2.46× | 2.49× |
+| 64 | 2,725 | 6,954 | 6,905 | 2.55× | 2.53× |
+| 128 | 2,649 | 5,974 | 5,742 | 2.26× | 2.17× |
+| 256 | 2,600 | 5,903 | 5,646 | 2.27× | 2.17× |
+| 512 | 2,572 | 5,831 | 5,601 | 2.27× | 2.18× |
+| 1,024 | 2,537 | 5,499 | 5,250 | 2.17× | 2.07× |
 
 ### GPU — Peak VRAM (MB) — all batch sizes
 
@@ -99,11 +102,11 @@ Same devices as Sessions 1–4. See [`session_1.md`](session_1.md) for full hard
 | 512 | 3,597 | 2,549 | 2,549 | 29.1% | 29.1% |
 | 1,024 | 7,087 | 5,033 | 5,033 | 29.0% | 29.0% |
 
-VRAM reduction is identical for FP16 and BF16 at every batch size. The saving is
-batch-dependent: **~21% at batch=32**, growing to **~29% at batch≥256** where it
-stabilises. At small batch sizes, the fixed FP32 overhead (optimizer states, which
-are not halved under autocast) dilutes the activation-level savings; as batch size
-grows, activation memory dominates and the saving approaches ~29%.
+VRAM reduction is identical for FP16 and BF16 at every batch size (their lines overlap
+in Chart 3). The saving is batch-dependent: **~21% at batch=32**, growing to **~29%
+at batch≥256** where it stabilises. At small batch sizes, the fixed FP32 overhead
+(optimizer states, which are not halved under autocast) dilutes the activation-level
+savings; as batch size grows, activation memory dominates and the saving approaches ~29%.
 
 ### TPU — Throughput (samples/sec)
 
@@ -129,20 +132,22 @@ indicating a systematic overhead rather than measurement noise.
 
 ![Throughput chart](assets/session_5_chart_throughput.png)
 
-GPU lines cluster in two bands — a lower FP32 band (~1,150–1,270 samples/sec) and an
-upper FP16/BF16 band (~2,300–2,880 samples/sec) — both essentially flat across batch
-sizes. TPU lines rise steeply and linearly with batch; at batch=1024 the TPU FP32 line
-reaches ~97,700 samples/sec, dwarfing all GPU lines. TPU FP32 and TPU BF16 are nearly
-coincident, making the 1.4–3.3% BF16 regression visible only at larger batches.
+GPU lines separate into two bands — a lower FP32 band (~2,500–2,900 samples/sec, roughly
+flat) and an upper FP16/BF16 band (~5,250–7,200 samples/sec) that declines gently from
+batch=32 to batch=1024. The upper band peaks at batch=32–64 (~7,100–7,200 s/s) and
+converges toward ~5,300–5,500 s/s at batch=1024. TPU lines rise steeply and linearly with
+batch; at batch=1024 the TPU FP32 line reaches ~97,700 samples/sec, dwarfing all GPU lines.
+TPU FP32 and TPU BF16 are nearly coincident, making the 1.4–3.3% BF16 regression visible
+only at larger batches.
 
 ### Chart 2 — BF16 / FP32 speedup ratio (GPU vs TPU)
 
 ![BF16 speedup chart](assets/session_5_chart_bf16_speedup.png)
 
-The GPU BF16 speedup line hovers around **2.1×** and is roughly constant across batch
-sizes. The TPU BF16 line sits just below **1.0×** and also stays flat — BF16 is
-consistently slower regardless of batch size. The chart makes the contrast between
-devices immediate.
+The GPU BF16 speedup line ranges from **~2.5×** at batch=32–64 down to **~2.1×** at
+batch=1024, with a pronounced dip at batch=128 before stabilising. The TPU BF16 line
+sits just below **1.0×** and also stays flat — BF16 is consistently slower regardless
+of batch size. The chart makes the contrast between devices immediate.
 
 ### Chart 3 — GPU peak VRAM by dtype
 
@@ -206,19 +211,19 @@ API — it does not route through CUDA INT8 kernels.
 
 | Batch | CPU INT8 (samples/s) | GPU FP32 (samples/s) | Ratio |
 |------:|---------------------:|---------------------:|------:|
-| 32 | 402 | 1,262 | 0.32× |
-| 64 | 398 | 1,268 | 0.31× |
-| 128 | 451 | 1,206 | 0.37× |
-| 256 | 480 | 1,191 | 0.40× |
-| 512 | 497 | 1,202 | 0.41× |
-| 1,024 | 498 | 1,146 | 0.43× |
+| 32 | 402 | 2,908 | 0.138× |
+| 64 | 398 | 2,725 | 0.146× |
+| 128 | 451 | 2,649 | 0.170× |
+| 256 | 480 | 2,600 | 0.185× |
+| 512 | 497 | 2,572 | 0.193× |
+| 1,024 | 498 | 2,537 | 0.196× |
 
-CPU dynamic-quant throughput is **3–4× slower** than GPU FP32 — these are CPU numbers,
+CPU dynamic-quant throughput is **5–7× slower** than GPU FP32 — these are CPU numbers,
 not GPU INT8. To exercise the L4's 242 INT8 TOPS, use `torch.ao.quantization.prepare`
 with a CUDA-aware backend or `torch.quantization.quantize_fx` with device=cuda.
 
 **Expected GPU INT8 throughput (not yet measured):** With proper CUDA INT8 kernels the
-L4 should deliver ~1.5–2× over FP32 for this model size (~1,700–2,400 samples/sec),
+L4 should deliver ~1.5–2× over FP32 for this model size (~3,800–5,100 samples/sec),
 consistent with the 2× spec ratio between INT8 TOPS and FP32 FLOPS.
 
 ### TPU INT8
@@ -231,9 +236,10 @@ point or complex dtype."* The INT8 MXU path (786 TOPS = 2× BF16 spec) was not e
 
 ## Key Takeaways
 
-- **On the GPU (NVIDIA L4), FP16 and BF16 each provide a consistent ~2.0–2.1× throughput
-  gain over FP32** across all tested batch sizes. Both formats simultaneously reduce peak
-  VRAM by ~21–29% (batch-dependent), enabling larger batches or bigger models at no cost.
+- **On the GPU (NVIDIA L4), FP16 and BF16 each provide a ~2.1–2.5× throughput gain over
+  FP32.** The speedup peaks at batch=32–64 (~2.5×) and settles to ~2.1–2.3× at batch≥128.
+  Both formats simultaneously reduce peak VRAM by ~21–29% (batch-dependent), enabling
+  larger batches or bigger models at no cost.
 
 - **BF16 is simpler than FP16 in practice.** BF16's wider exponent range matches FP32's
   dynamic range, so gradient underflow does not occur and no `GradScaler` is needed.
@@ -243,8 +249,8 @@ point or complex dtype."* The INT8 MXU path (786 TOPS = 2× BF16 spec) was not e
   TPU configuration until benchmarked otherwise.**
 
 - **The TPU's raw throughput advantage at large batches is substantial regardless of
-  dtype.** At batch=1024, FP32 on the TPU reaches 97,749 samples/sec vs 1,146 on the
-  GPU — an ~85× gap. The dtype choice is a secondary concern on the TPU; batch size is
+  dtype.** At batch=1024, FP32 on the TPU reaches 97,749 samples/sec vs 2,537 on the
+  GPU — a ~39× gap. The dtype choice is a secondary concern on the TPU; batch size is
   the dominant lever.
 
 - **GPU INT8 (`quantize_dynamic`) runs on CPU in PyTorch, not on the GPU's INT8 Tensor

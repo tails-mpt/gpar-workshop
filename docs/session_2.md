@@ -8,7 +8,7 @@ memory bandwidth advantage compound as attention's O(seq²) memory footprint gro
 so, does the crossover point move?
 
 The answer is sharper than expected. The GPU degrades toward a quadratic collapse as
-sequences lengthen. The TPU shows near-zero degradation — holding ~3,130–3,166 samples/sec
+sequences lengthen. The TPU shows near-zero degradation — holding ~3,128–3,166 samples/sec
 across all six points. The crossover occurs at `seq_len ≈ 128`, which is also the default
 seq_len used in Session 1, confirming both experiments share the same operating-regime
 boundary.
@@ -152,7 +152,7 @@ The reason is not that the TPU has infinite bandwidth. The reason is that at `ba
 the bottleneck is the **XLA synchronisation overhead**, not memory bandwidth or compute.
 
 Evidence: in Session 1, the TPU's per-step wall time is approximately constant at ~10ms
-regardless of batch size (32/2975 ≈ 10.7ms at batch=32; 1024/95703 ≈ 10.7ms at batch=1024).
+regardless of batch size (32/2984 ≈ 10.7ms at batch=32; 1024/94795 ≈ 10.8ms at batch=1024).
 The same holds here — per-step time is ~10ms across all seq_len values. As seq_len grows,
 each step performs more computation within the same sync window, so:
 

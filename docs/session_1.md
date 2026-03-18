@@ -87,15 +87,15 @@ Defined in [`transformer_block.py`](../transformer_block.py).
 
 | Batch | GPU (samples/s) | TPU (samples/s) |
 |---:|---:|---:|
-| 4 | 1,390 | 371 |
-| 8 | 2,585 | 753 |
-| 16 | **2,892** ← GPU peak | 1,498 |
-| 32 | 2,887 | 2,975 |
-| 64 | 2,769 | 5,946 |
-| 128 | 2,682 | 11,877 |
-| 256 | 2,651 | 23,853 |
-| 512 | 2,613 | 47,658 |
-| 1024 | 2,575 | **95,703** ← TPU peak |
+| 4 | 1,388 | 370 |
+| 8 | 2,521 | 745 |
+| 16 | 2,866 | 1,496 |
+| 32 | **2,895** ← GPU peak | 2,984 |
+| 64 | 2,760 | 5,968 |
+| 128 | 2,688 | 11,900 |
+| 256 | 2,653 | 23,862 |
+| 512 | 2,618 | 47,580 |
+| 1024 | 2,575 | **94,795** ← TPU peak |
 
 ---
 
@@ -106,14 +106,15 @@ Defined in [`transformer_block.py`](../transformer_block.py).
 ![Throughput vs Batch Size](assets/session_1_chart_throughput.png)
 
 **What the chart shows:**
-The linear Y-axis tells the story immediately. The GPU (green) is compressed into a
-near-flat band at the bottom of the chart. The TPU (blue) starts below the GPU at
-small batch sizes, crosses it at batch=32, and then climbs steeply — eventually
-reaching ~95,700 samples/sec at batch=1024, a value so large that the GPU's plateau
-(~2,600) becomes visually indistinguishable from zero on this scale.
+The combination of a log₂ X-axis and a linear Y-axis makes the divergence immediately
+visible. The GPU (green) is a near-flat band compressed near the bottom of the chart.
+The TPU (blue) starts below the GPU at small batch sizes, crosses it at batch=32, and
+then climbs steeply — eventually reaching ~94,795 samples/sec at batch=1024, a value
+so large that the GPU's plateau (~2,600) becomes visually indistinguishable from zero
+on this scale.
 
 The visual "crush" of the GPU is not an artefact — it is the correct representation.
-At batch=1024 the TPU processes **37× more samples per second** than the GPU on the
+At batch=1024 the TPU processes **37× as many samples per second** as the GPU on the
 same workload.
 
 ---
@@ -123,22 +124,41 @@ same workload.
 ![GPU vs TPU Crossover](assets/session_1_chart_crossover.png)
 
 **What the chart shows:**
-Zooming in on just GPU and TPU reveals the crossover point precisely. The red
-dotted line marks **batch=32** — the exact batch size at which TPU throughput
-(2,975 samples/sec) first exceeds GPU throughput (2,887 samples/sec).
+The same data as Chart 1, now with a red dotted line marking **batch=32** — the
+exact batch size at which TPU throughput (2,984 samples/sec) first exceeds GPU
+throughput (2,895 samples/sec). Notably, batch=32 is also the GPU's performance
+peak: the TPU overtakes the GPU precisely when the GPU has nothing more to give.
 
 Left of the line: GPU leads. The GPU's fast CUDA dispatch and mature cuDNN
 kernels give it an advantage when there isn't enough work to keep the TPU's
-systolic array busy. At batch=16 the GPU is at its peak while the TPU is still
-warming up its compile-and-dispatch pipeline.
+systolic array busy. At batch=16 the GPU is already near its ceiling while the TPU
+is still warming up its compile-and-dispatch pipeline.
 
-Right of the line: TPU diverges exponentially (linear on a log-batch scale).
-Every doubling of batch size nearly doubles TPU throughput. The GPU line is
-almost perfectly flat — it has hit its memory bandwidth ceiling and adding more
-work produces no additional output.
+Right of the line: TPU throughput scales proportionally to batch size — every
+doubling of batch size nearly doubles TPU output (reflecting near-perfect MXU
+utilisation). The GPU line is almost perfectly flat — it has hit its memory
+bandwidth ceiling and adding more work produces no additional throughput.
 
-The gap widens dramatically: at batch=64 the TPU is 2.1× faster; at batch=256
+The gap widens steadily: at batch=64 the TPU is 2.1× faster; at batch=256
 it is 9×; at batch=1024 it is **37×**.
+
+---
+
+### Chart 3 — TPU / GPU speedup ratio across batch sizes
+
+![TPU Speedup over GPU](assets/session_1_chart_speedup.png)
+
+**What the chart shows:**
+The Y-axis is the TPU/GPU throughput ratio. The red dotted line at 1× marks parity.
+At small batch sizes the GPU leads (ratio < 1): the TPU is only 0.27× as fast at
+batch=4 and 0.52× at batch=16. The ratio crosses 1× at batch=32, then accelerates
+— reaching 9× at batch=256 and **37× at batch=1024**. The shaded blue region (TPU
+faster) grows as batch size doubles, making the increasing advantage visible in a
+single glance.
+
+This view is complementary to Charts 1 and 2: instead of comparing absolute
+throughput, it directly answers "by how much does the choice of hardware matter at
+each operating point?"
 
 ---
 
@@ -146,7 +166,9 @@ it is 9×; at batch=1024 it is **37×**.
 
 ### GPU: memory bandwidth ceiling
 
-The L4 saturates at **batch=16** and plateaus for all larger batches:
+The L4 peaks at **batch=32** (2,895 samples/sec) and declines for all larger batches.
+The curve is essentially flat from batch=16 onward — throughput gains less than 1%
+going from batch=16 to batch=32, then falls monotonically:
 
 1. **Memory bandwidth bottleneck (~300 GB/s).** The GPU's CUDA cores are fed data
    through the memory bus. Once the bus is saturated, adding more samples per step
@@ -155,7 +177,7 @@ The L4 saturates at **batch=16** and plateaus for all larger batches:
    per-step overhead that grows with batch size, partially eroding any marginal gain.
 3. **Cache pressure.** Larger activations spill out of L2/shared memory, increasing
    DRAM round-trips and further penalising large batches.
-4. **Slight throughput decrease beyond batch=16** (~10% from peak to batch=1024)
+4. **Slight throughput decrease beyond batch=32** (~11% from peak to batch=1024)
    is consistent with the above — pure memory-traffic penalty.
 
 ### TPU: near-perfect linear scaling
@@ -164,7 +186,7 @@ The TPU scales almost exactly **2× for every 2× increase in batch size**:
 
 | Ratio | Value |
 |---|---|
-| batch=1024 / batch=4 | 95,703 / 371 = **257.9×** |
+| batch=1024 / batch=4 | 94,795 / 370 = **256.2×** |
 | Expected if perfectly linear | 1024 / 4 = **256×** |
 
 The deviation from perfect linearity is less than 1%. This arises from:
@@ -186,13 +208,14 @@ The deviation from perfect linearity is less than 1%. This arises from:
 
 ## Key Takeaways
 
-- **GPU throughput is memory-bandwidth-limited.** The NVIDIA L4 saturates at
-  batch=16 (~2,892 samples/sec) and gains nothing from larger batches — adding
-  more work just queues behind the memory bus.
+- **GPU throughput is memory-bandwidth-limited.** The NVIDIA L4 peaks at
+  batch=32 (~2,895 samples/sec) and gains nothing beyond that — adding more
+  work just queues behind the memory bus. The curve is already near-flat at
+  batch=16 (~2,866 samples/sec), confirming saturation sets in early.
 
 - **TPU throughput is compute-limited and scales near-perfectly linearly.** The
-  v5litepod MXU delivers 257× throughput gain from batch=4 to batch=1024,
-  reaching 95,703 samples/sec — **37× faster than the L4 at the same batch size**.
+  v5litepod MXU delivers 256× throughput gain from batch=4 to batch=1024,
+  reaching 94,795 samples/sec — **37× faster than the L4 at the same batch size**.
 
 - **The crossover is at batch=32.** Below that, the GPU's fast dispatch wins;
   above it, the TPU's systolic array dominates and the gap grows with every

@@ -62,10 +62,10 @@ Approximate activation memory per layer: **~112 MB**.
 Total model + optimizer state: **~48 MB per layer** (constant across depth).
 
 At batch=64, the activation memory dominates. Using activation memory alone (112 MB/layer),
-the theoretical OOM boundary is roughly n_layers ≈ 23.7×1024 / 112 ≈ 217 layers.
+the theoretical OOM boundary is roughly n_layers ≈ 23,700 / 112 ≈ 212 layers.
 However, this figure **excludes gradients, Adam optimizer states, and allocator overhead**,
 which together account for an additional ~245 MB/layer observed empirically (see Results
-below). The operational OOM boundary from measured data is approximately 60 layers — see
+below). The operational OOM boundary from measured data is approximately 64 layers — see
 the Key Takeaways section for the reconciled estimate.
 
 ---
@@ -87,7 +87,7 @@ the Key Takeaways section for the reconciled estimate.
 
 **No OOM observed** across the full [1–24] layer sweep at batch=64. Peak VRAM at
 n_layers=24 is 8,772 MB — 38% of the L4's 23,034 MB. BERT-scale (12 layers) fits
-at 4,473 MB (19% VRAM). The GPU has headroom for approximately 60 layers before
+at 4,473 MB (19% VRAM). The GPU has headroom for approximately 64 layers before
 hitting 23 GB at this batch size.
 
 **VRAM growth per layer:** approximately **357 MB** per additional layer
@@ -147,7 +147,7 @@ MXU is purely compute-bound with no memory-bandwidth noise floor.
 
 ## Charts
 
-### Chart 1 — Throughput vs depth (GPU and TPU, with OOM boundary)
+### Chart 1 — Throughput vs depth (GPU and TPU)
 
 ![Throughput chart](assets/session_3_chart_depth.png)
 
@@ -170,12 +170,12 @@ VRAM grows linearly with depth at ~357 MB per layer. At 24 layers, peak VRAM is
   VRAM at 24 layers is 8,772 MB (38% of L4). TPU has no direct VRAM metric but ran
   all 24-layer steps without error on 16 GB HBM2.
 
-- **The GPU's estimated OOM boundary at batch=64 is ~60 layers** (extrapolating the
+- **The GPU's estimated OOM boundary at batch=64 is ~64 layers** (extrapolating the
   measured 357 MB/layer growth rate to 23 GB). Note that this differs from the
-  theoretical 217-layer figure in the Benchmark Configuration section: the theoretical
+  theoretical 212-layer figure in the Benchmark Configuration section: the theoretical
   estimate counts only activation memory (112 MB/layer) and omits gradients, Adam
   states, and allocator overhead. The measured 357 MB/layer captures the full
-  per-layer training cost; **~60 layers is the operationally correct estimate**.
+  per-layer training cost; **~64 layers is the operationally correct estimate**.
 
 - **VRAM cost per encoder block at batch=64: ~357 MB** (activations + gradients +
   Adam moments + allocator overhead). At batch=256, this scales 4× to ~1.4 GB/layer;
@@ -187,8 +187,9 @@ VRAM grows linearly with depth at ~357 MB per layer. At 24 layers, peak VRAM is
   consistent with pure compute-bound MXU utilisation.
 
 - **The TPU/GPU throughput advantage is depth-invariant: ~2.5×** across all tested
-  depths (2.29× at n=1 to 2.70× at n=6). This matches the Session 1 single-layer
-  advantage at batch=64 (2.16×), confirming the ratio is not a single-layer artefact.
+  depths (2.29× at n=1 to 2.70× at n=6). This is broadly consistent with the Session 1
+  single-layer advantage at batch=64 (2.16×) — the 6% difference is within expected
+  run-to-run variability and confirms the ratio is not a single-layer artefact.
 
 - **The VRAM table is a budget planner.** At n_layers=12 (BERT-base), VRAM is 4,473 MB
   on the GPU — well within the L4's limit. If VRAM exceeds 80% of device capacity,

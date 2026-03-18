@@ -58,7 +58,7 @@ keeps both in view.
 
 ## The economic context
 
-The cost analysis (originally session 8 in the development archive) established the
+The cost analysis established the
 following using FP32 training throughput from Session 1:
 
 | Batch | GPU (samples/$) | TPU (samples/$) | TPU cheaper? |
@@ -123,7 +123,7 @@ or cross-layer memory reuse. Session 3 in the workshop scales this to 24 layers.
 |---|---|---|
 | [Session 1](session_1.md) | GPU vs TPU Throughput Scaling | At what batch size does the TPU overtake the GPU, and how large does the gap get? |
 | [Session 2](session_2.md) | Sequence Length Scaling | How does GPU throughput degrade as sequences lengthen, and why is the TPU immune? |
-| [Session 3](session_3.md) | Model Depth and Memory Limits | How does throughput and VRAM scale from 1 to 24 layers? Where does each device run out of memory? |
+| [Session 3](session_3.md) | Model Depth and Memory Limits | How does throughput and VRAM scale from 1 to 24 layers? How much headroom does each device have before it runs out of memory? |
 | [Session 4](session_4.md) | Static vs Dynamic Graphs | What happens to TPU performance when a model uses data-dependent control flow? How bad is it, and can it be fixed? |
 | [Session 5](session_5.md) | Precision and Dtype | How much do FP16, BF16, and INT8 actually improve throughput and reduce memory on each device? |
 | [Session 6](session_6.md) | Framework Interoperability | Does it matter whether you use JAX/Flax or PyTorch/XLA? How do two frameworks that both compile to XLA differ in practice? |
