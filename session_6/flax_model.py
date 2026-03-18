@@ -1,15 +1,15 @@
 """
 flax_model.py
 -------------
-Flax/Linen implementation of the Transformer encoder block for Session 5.
+Flax/Linen implementation of the Transformer encoder block for Session 6.
 
 Architecture mirrors BenchmarkTransformerBlock from transformer_block.py:
   - Post-LayerNorm multi-head self-attention
   - Position-wise feedforward: Dense → GELU → Dense
   - Residual connections around both sub-layers
 
-This file is Session 5 only — not imported by any other session.
-Import from a Session 5 notebook with:
+This file is Session 6 only — not imported by any other session.
+Import from a Session 6 notebook with:
 
     import sys; sys.path.insert(0, ".")
     from flax_model import FlaxTransformerBlock, D_MODEL, N_HEAD, DIM_FEEDFORWARD, SEQ_LEN

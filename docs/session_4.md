@@ -2,16 +2,16 @@
 
 ## Overview
 
-Session 4 introduces the first scenario where the GPU wins. While Sessions 1–3 used
-fully static forward passes, this session deliberately injects data-dependent control
-flow into the model and measures the cost on each device.
+Session 4 introduces the first scenario where the GPU wins — and then complicates it.
+While Sessions 1–3 used fully static forward passes, this session deliberately injects
+data-dependent control flow into the model and measures the cost on each device.
 
 The session is structured in two parts:
 
 **Part A — Abstract variants (baseline):** Three minimal variants of the Transformer
 block that isolate the XLA compilation penalty from the forward pass structure.
 
-**Part B — Realistic scenarios:** Three scenarios drawn from real NLP and training
+**Part B — Realistic scenarios:** Five scenarios drawn from real NLP and training
 practice — padding masks, conditional early exit, and variable-length batch loops —
 that show how the static/dynamic constraint manifests in production-like code.
 
@@ -27,8 +27,8 @@ Same devices as Sessions 1–3. See [`session_1.md`](session_1.md) for full hard
 
 | Device | Memory | Bandwidth | Note |
 |---|---|---|---|
-| NVIDIA L4 (GPU) | 23.7 GB GDDR6 | ~300 GB/s | Eager execution — evaluates branches immediately |
-| TPU v5litepod-1 | 16 GB HBM2 | ~819 GB/s | XLA compiled — branches in Python force graph sync |
+| NVIDIA L4 (GPU) | 23.7 GB GDDR6 | ~300 GB/s | Eager execution — but scalar reductions still cost sync |
+| TPU v5litepod-1 | 16 GB HBM2 | ~819 GB/s | XLA compiled — Python branches force graph recompilation |
 
 ---
 
@@ -40,7 +40,7 @@ Same devices as Sessions 1–3. See [`session_1.md`](session_1.md) for full hard
 | PyTorch | 2.10.0+cu128 | 2.9.0+cu128 |
 | torch_xla | — | 2.9.0 |
 | Device string | `cuda:0` | `xla:0` |
-| Run timestamp | 2026-02-27T17:39 UTC | 2026-02-27T17:41 UTC |
+| Run timestamp | 2026-03-04T01:17 UTC | 2026-03-04T01:21 UTC |
 
 ---
 
@@ -63,7 +63,13 @@ scalar on the host CPU — which forces an implicit XLA sync mid-step:
 5. Sync again at the end of the step
 
 Two compilations per step instead of one, plus a device-to-host transfer, plus broken
-fusion opportunities. The GPU never builds such a graph, so it is completely unaffected.
+fusion opportunities.
+
+**On GPU, the picture is more subtle.** PyTorch dispatches every operation immediately
+(eager mode), so there is no "compiled graph" to invalidate. However, computing a scalar
+reduction like `out.mean()` requires completing the kernel and reading back the result
+before the Python interpreter can evaluate the condition. This still creates a
+synchronisation point — not as severe as an XLA recompilation, but not free either.
 
 ---
 
@@ -94,26 +100,26 @@ class StaticEquivalentFF(nn.Module):
 
 | Variant | GPU (samples/s) | GPU latency (ms) | TPU (samples/s) | TPU latency (ms) |
 |---|---:|---:|---:|---:|
-| StaticFF | 2,645 | 96.8 | **23,605** | 10.9 |
-| DynamicFF | 2,590 | 98.8 | **9,425** | 27.2 |
-| StaticEquivalentFF | 2,551 | 100.4 | **23,284** | 11.0 |
+| StaticFF | 2,038 | 125.6 | **24,017** | 10.7 |
+| DynamicFF | 1,199 | 213.5 | **9,453** | 27.1 |
+| StaticEquivalentFF | 1,144 | 223.7 | **23,806** | 10.7 |
 
 ### Relative throughput (vs StaticFF baseline)
 
 | Variant | GPU | TPU |
 |---|---:|---:|
 | StaticFF | 1.000× | 1.000× |
-| DynamicFF | **0.979×** (−2.1%) | **0.399×** (−60.1%) |
-| StaticEquivalentFF | **0.964×** (−3.6%) | **0.986×** (−1.4%) |
+| DynamicFF | **0.588×** (−41%) | **0.394×** (−61%) |
+| StaticEquivalentFF | **0.561×** (−44%) | **0.991×** (−0.9%) |
 
 ### Recovery metric (TPU only)
 
 | Metric | Value |
 |---|---|
-| Static baseline throughput | 23,605 samples/sec |
-| Dynamic penalty (lost throughput) | −14,180 samples/sec |
-| StaticEquivalent recovery | +13,859 samples/sec |
-| **Penalty recovered** | **97.7%** |
+| Static baseline throughput | 24,017 samples/sec |
+| Dynamic penalty (lost throughput) | −14,564 samples/sec |
+| StaticEquivalent recovery | +14,353 samples/sec |
+| **Penalty recovered** | **98.5%** |
 
 ### Part A charts
 
@@ -122,208 +128,143 @@ class StaticEquivalentFF(nn.Module):
 ![Graph Variants Bar Chart](assets/session_4_chart_variants.png)
 
 **What the chart shows:**
-The two green (GPU) bars are nearly identical — the GPU column is flat across all three
-variants, compressed near the bottom of the chart relative to the TPU's StaticFF and
-StaticEquivalentFF bars. The TPU's DynamicFF bar drops sharply to less than half the
-height of its neighbours. The chart makes the penalty and recovery immediately legible:
-the `DynamicFF` bar is the anomaly, and `StaticEquivalentFF` restores the TPU bar to
-its full height.
+The TPU's StaticFF and StaticEquivalentFF bars dominate. The DynamicFF bar drops to less
+than half on both devices — but `torch.where` restores the TPU bar to near its full height
+while the GPU bar remains low. The GPU shows a significant penalty for both DynamicFF and
+StaticEquivalentFF.
+
+#### Chart 2 — Latency per step
+
+![Latency Chart](assets/session_4_chart_latency.png)
+
+**What the chart shows:**
+TPU DynamicFF latency triples (10.7 ms → 27.1 ms) while GPU latency roughly doubles
+(125.6 ms → 213.5 ms). StaticEquivalentFF recovers the TPU to 10.7 ms but leaves the
+GPU latency unchanged at 223.7 ms.
 
 ---
 
 ### Part A Analysis
 
-**GPU: eager dispatch is blind to graph structure.** On the GPU, PyTorch evaluates every
-operation as it is called. When `out.mean() > 0` is reached, the value is computed
-immediately and the result is a Python `bool`. The three variants run the same CUDA
-kernels in essentially the same sequence — throughput varies by at most 3.6%.
+**TPU DynamicFF: 61% throughput collapse from a single Python `if`.**  Per-step latency
+jumps from 10.7 ms to 27.1 ms — a 2.5× slowdown. The cost equals adding more than half
+the original compute budget per step.
 
-**TPU DynamicFF: 60% throughput collapse from a single Python `if`.** Per-step latency
-jumps from 10.85 ms to 27.16 ms — a 2.5× slowdown. The cost of one data-dependent
-Python branch equals adding 1.6× the entire compute budget of the step.
+**`torch.where` recovers 98.5% of the TPU penalty.** The condition stays inside the XLA
+graph. No intermediate sync is required. Latency returns to 10.7 ms.
 
-**`torch.where` recovers 97.7% with one line of code.** The condition stays inside the
-XLA graph. No intermediate sync is required. Per-step latency returns to 10.99 ms.
+**GPU: DynamicFF also costs ~41%, and `torch.where` does not help.** In eager mode,
+evaluating `out.mean() > 0` requires a CUDA kernel to complete, a scalar to be read back
+from the device, and then Python to evaluate the condition. This synchronisation point
+breaks the GPU's asynchronous pipeline even without a compiled graph. Replacing the Python
+`if` with `torch.where` does not avoid computing `out.mean()` — the reduction still runs,
+the sync still happens, and throughput stays at ~1,140–1,200 samples/sec.
 
-The remaining 1.4% gap between StaticFF and StaticEquivalentFF reflects the compute cost
-of evaluating `out.mean()` as an additional tensor reduction — real but negligible.
+**The key difference:** On the TPU, the branch causes *recompilation* (which is eliminated
+by `torch.where`). On the GPU, the branch causes a *scalar sync* (which is inherent to
+computing the condition value, regardless of how it's expressed). `torch.where` solves the
+TPU problem; neither device can avoid the cost of the reduction itself.
 
 ---
 
 ## Part B — Realistic scenarios
 
-The abstract variants above demonstrate the mechanism. This part shows how it manifests
-in three common real-world patterns. **Results for Part B are pending experimental runs;**
-the scenarios are fully specified below and the notebooks contain runnable benchmark cells.
+### Combined results table
+
+All benchmarks use `batch=256, seq_len=128` except where noted.
+
+| Scenario | Variant | GPU (s/s) | TPU (s/s) | TPU/GPU |
+|---|---|---:|---:|---:|
+| *(baseline)* | StaticFF | 2,038 | 24,017 | 11.8× |
+| B1: Padding mask | PaddingMask | 1,162 | 23,960 | 20.6× |
+| B2: Early exit | EarlyExitDynamic | 1,038 | 7,522 | 7.2× |
+| B2: Early exit | EarlyExitStatic | 603 | 18,577 | 30.8× |
+| B3: Ragged batches | FixedLoopFF | 407 | 15,565 | 38.2× |
+| B3: Ragged batches | VariableLoopFF | 806 | 15,520 | 19.3× |
 
 ---
 
 ### Scenario B1: Padding mask (variable-length sequences in a batch)
 
-**Context:** Real NLP batches contain sequences of different lengths. A standard practice
-is to pad shorter sequences to the maximum length in the batch and apply a boolean mask
-during attention to ignore padding tokens.
+**The pattern:** Real NLP batches contain sequences of different lengths. The mask is built
+from runtime sequence lengths. A tensor-op mask stays in the XLA graph; a Python loop
+forces a `.tolist()` sync per element.
 
-**The dynamic pattern:** If the mask is computed from the actual sequence lengths at
-runtime using a Python-level loop or a conditional:
+**Result:** `PaddingMask` (tensor-op mask) costs the GPU −43% but costs the TPU only
+−0.2%. The TPU handles tensor-valued masking with essentially no overhead — the mask
+computation is fused into the XLA program.
 
-```python
-# Dynamic version — Python branch on per-sample length
-def forward(self, x, lengths):
-    out = self.block(x)
-    # Building mask with Python control flow per sample
-    mask = torch.zeros(batch, seq_len, device=x.device)
-    for i, length in enumerate(lengths.tolist()):   # .tolist() forces XLA sync
-        mask[i, length:] = float('-inf')
-    return out + mask.unsqueeze(1).unsqueeze(1)
-```
-
-**The static fix:**
-
-```python
-# Static version — mask computed entirely as tensor ops
-def forward(self, x, lengths):
-    out = self.block(x)
-    # Build mask without touching Python scalars mid-step
-    positions = torch.arange(seq_len, device=x.device).unsqueeze(0)  # [1, seq_len]
-    mask = (positions >= lengths.unsqueeze(1)).float() * float('-inf') # [batch, seq_len]
-    return out + mask.unsqueeze(1).unsqueeze(1)
-```
-
-**Expected finding:** The dynamic version forces a `.tolist()` call per step, materialising
-the `lengths` tensor on CPU and causing an XLA sync per sample. The static version builds
-the mask entirely within the XLA graph using broadcasting. On GPU: no meaningful difference.
-On TPU: substantial penalty in the dynamic version (proportional to batch size), full
-recovery in the static version.
-
-**Benchmark configuration:** `batch=256, seq_len=128`, `lengths` sampled uniform in
-[64, 128] per step. N_STEPS=50.
-
-> **[PENDING RUN]** Results will be added once benchmark cells are executed.
+**GPU penalty:** The mask reduction still requires a sync even in the tensor-op version.
 
 ---
 
 ### Scenario B2: Conditional early exit (adaptive computation)
 
-**Context:** Early exit mechanisms allow a model to skip later layers for "easy" samples
-where the model is already confident. This saves compute on well-represented examples.
-The key is whether the exit condition is evaluated in Python (forcing a sync) or kept
-inside the XLA graph.
+**EarlyExitDynamic** — Python `if confidence > threshold` at each layer:
 
-**The dynamic pattern:**
+- GPU: 1,038 s/s (−49% vs StaticFF)
+- TPU: 7,522 s/s (−69% — worse than DynamicFF, because the branch evaluates per-layer)
 
-```python
-# Dynamic early exit — Python branch on confidence per step
-class EarlyExitModel(nn.Module):
-    def forward(self, x, threshold=0.8):
-        for i, block in enumerate(self.blocks):
-            x = block(x)
-            # Compute confidence proxy (max activation norm) and branch
-            confidence = x.norm(dim=-1).max()        # scalar reduction
-            if confidence > threshold:               # Python branch — XLA sync
-                return x, i                          # exit early
-        return x, len(self.blocks) - 1
-```
+**EarlyExitStatic** — exit condition as a `torch.where` mask, no Python branch:
 
-**The static fix:**
+- GPU: 603 s/s (−70% — *slower* than EarlyExitDynamic; the static version runs every
+  layer unconditionally, masking out exited samples, which is more compute than early exit)
+- TPU: 18,577 s/s (−23% — significant recovery, though not complete; the per-layer mask
+  computation adds overhead that static analysis cannot fully hide)
 
-```python
-# Static early exit — exit condition as a mask, no Python branch
-class EarlyExitStaticModel(nn.Module):
-    def forward(self, x, threshold=0.8):
-        exited = torch.zeros(x.shape[0], dtype=torch.bool, device=x.device)
-        output = torch.zeros_like(x)
-        for block in self.blocks:
-            x_new = block(x)
-            # Update only samples that haven't exited yet
-            x = torch.where(exited.unsqueeze(-1).unsqueeze(-1), x, x_new)
-            # Check exit condition as a tensor op (no Python branch)
-            confidence = x.norm(dim=-1).max(dim=-1).values  # [batch]
-            newly_exited = confidence > threshold
-            output = torch.where(newly_exited.unsqueeze(-1).unsqueeze(-1), x, output)
-            exited = exited | newly_exited
-        return output
-```
-
-**Expected finding:** The dynamic version triggers an XLA sync at every layer for every
-batch (to evaluate the Python `if`). For a 6-layer model, that is 6 syncs per step instead
-of 1. The static version compiles the full loop as a single XLA program. On GPU: marginal
-difference. On TPU: severe penalty in the dynamic version, recovered by the static version.
-
-**Benchmark configuration:** 4-layer `DeepTransformerModel`, `batch=64, seq_len=128`,
-threshold=0.8, N_STEPS=30.
-
-> **[PENDING RUN]** Results will be added once benchmark cells are executed.
+**Key insight:** The static early exit approach is better for TPU but worse for GPU.
+On GPU, the dynamic version benefits from genuinely skipping layers; on TPU, the dynamic
+version's recompilation cost exceeds the compute saved, so the static (mask) version wins
+despite doing more compute.
 
 ---
 
 ### Scenario B3: Variable-length batch loop (ragged batches)
 
-**Context:** Some workloads — document QA, code completion, chat turns — naturally
-produce batches where each element has a different token count. One approach is to
-loop over variable-length inputs rather than padding to a fixed shape.
+**FixedLoopFF** — process each sample in a loop with a fixed number of iterations:
 
-**The dynamic pattern:**
+- GPU: 407 s/s (−80% — sequential Python loop eliminates GPU parallelism)
+- TPU: 15,565 s/s (−35% — XLA compiles the fixed loop as a single program)
 
-```python
-# Variable loop — loop length changes each step
-def process_ragged_batch(model, inputs):
-    # inputs is a list of tensors with different seq lengths
-    outputs = []
-    for inp in inputs:                               # loop length = batch size
-        out = model(inp.unsqueeze(0))               # [1, seq_i, d_model]
-        outputs.append(out)
-    return outputs
-```
+**VariableLoopFF** — variable number of iterations per step (data-dependent loop length):
 
-**The static fix:**
+- GPU: 806 s/s (−60%)
+- TPU: 15,520 s/s (−35%)
 
-```python
-# Static equivalent — pad to fixed max length, use attention mask
-def process_padded_batch(model, inputs, max_len):
-    # Pad all inputs to max_len
-    padded = torch.zeros(len(inputs), max_len, D_MODEL, device=inputs[0].device)
-    for i, inp in enumerate(inputs):
-        padded[i, :inp.shape[0]] = inp
-    mask = create_padding_mask(inputs, max_len)     # static tensor op
-    return model(padded, mask)                      # single forward call
-```
-
-**Expected finding:** The per-sample loop causes one XLA trace/compile per sample per
-step — the graph size scales with batch size and the compilation cost grows with it. The
-padded version is one fixed-shape forward call with a mask, which XLA compiles once. On
-GPU: the loop version is slower (sequential Python overhead) but no catastrophic penalty.
-On TPU: catastrophic in the loop version (N×compile), full or near-full recovery with padding.
-
-**Benchmark configuration:** `batch=8` variable-length sequences (seq_len ∈ [32, 128]),
-N_STEPS=30. Comparison: total throughput in tokens/sec.
-
-> **[PENDING RUN]** Results will be added once benchmark cells are executed.
+**Surprising finding:** VariableLoopFF is nearly identical to FixedLoopFF on the TPU
+(15,520 vs 15,565 s/s). XLA re-traces on first call but the amortised per-step cost is
+the same. On GPU, VariableLoopFF is nearly 2× faster than FixedLoopFF — the variable
+loop exits earlier on average, while the fixed loop always runs all iterations.
 
 ---
 
 ## Combined Key Takeaways
 
-- **GPU throughput is insensitive to graph structure.** All three abstract variants land
-  within 4% on the GPU. Eager dispatch has no concept of a "compiled graph" to invalidate —
-  it executes each operation as issued, regardless of control flow structure.
+- **Both GPU and TPU pay a cost for data-dependent operations** — but for different
+  reasons and with different remedies.
 
-- **A single Python `if` on a tensor value costs the TPU 60% of its throughput.**
-  `DynamicFF` drops from 23,605 to 9,425 samples/sec. Per-step latency triples
-  (10.85 ms → 27.16 ms) because XLA must sync mid-step to evaluate the branch condition.
+- **GPU penalty (DynamicFF): ~41%.** The scalar reduction `.mean()` requires a
+  CUDA-to-CPU sync even in eager mode. `torch.where` does not help because the
+  reduction still executes. This is inherent to needing the value at Python level.
 
-- **`torch.where` recovers 97.7% of the penalty with one line of code.**
-  Replacing the Python `if` with a tensor-valued equivalent keeps the condition inside the
-  XLA graph. Latency returns to 10.99 ms.
+- **TPU penalty (DynamicFF): ~61%.** `if out.mean() > 0` forces an XLA graph sync and
+  recompilation mid-step. `torch.where` recovers 98.5% — the condition stays in the
+  XLA program and no Python-level evaluation occurs.
 
-- **The same principle applies at scale:** padding masks, early exit conditions, and ragged
-  batch iteration all trigger the same mechanism. The fix is always the same — express the
-  condition as a tensor op (`torch.where`, `masked_fill`, boolean masking) rather than a
-  Python branch.
+- **`torch.where` is a one-line TPU fix.** For branches that can be expressed as a
+  tensor predicate, refactoring to `torch.where` or `masked_fill` eliminates nearly all
+  TPU overhead with no change to model behaviour.
 
-- **The constraint is refactorable, not fundamental.** Many research branches can be
-  rewritten as tensor ops. When they cannot — variable routing, sparsity patterns whose
-  structure cannot be expressed as masks — the GPU is the correct choice.
+- **Padding masks are essentially free on TPU** (−0.2% vs StaticFF). This is the most
+  common dynamic pattern in NLP and it does not constrain TPU suitability.
+
+- **Early exit is genuinely complex.** The static version (mask-based) is better for
+  TPU but worse for GPU. For models with early exit, profile both versions on each device
+  before choosing.
+
+- **The constraint is often refactorable.** Most branches in research code can be
+  replaced with `torch.where`, `masked_fill`, or boolean masking. When they cannot
+  (e.g., truly variable routing per sample), the GPU may be the simpler choice.
 
 ---
 
@@ -331,13 +272,14 @@ N_STEPS=30. Comparison: total throughput in tokens/sec.
 
 If your model's control flow depends on a tensor value:
 
-1. **Can the branch be expressed as `torch.where`, `masked_fill`, or a boolean mask?**
-   → Yes: refactor and use the TPU. Recovery is ~97%.
-   → No: use the GPU.
+1. **Is the condition derivable from a tensor op (`mean`, `max`, `norm`, threshold)?**
+   → Yes: use `torch.where` / `masked_fill` — near-full TPU recovery, moderate GPU cost.
+   → No (Python-level routing): GPU avoids recompilation; TPU may still be faster overall.
 
 2. **Does your training loop iterate over variable-length or ragged inputs?**
-   → Yes: pad to a fixed shape first. The fixed shape compiles once; the ragged loop
-   triggers recompilation per element on the TPU.
+   → Pad to a fixed shape. The fixed shape compiles once; the ragged loop recompiles.
+   → TPU still wins significantly (38× at FixedLoopFF) even with looping overhead.
 
-3. **Is the exit condition computed in Python from a tensor reduction?**
-   → Rewrite as a tensor mask operation. Keep the condition inside the XLA graph.
+3. **Is early exit critical?**
+   → The static mask version favours TPU; the dynamic version favours GPU at this scale.
+   → Benchmark both if early exit is a core architectural feature.
