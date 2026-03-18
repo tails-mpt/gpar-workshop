@@ -1461,12 +1461,20 @@ and optimizer as Python closures; JAX traces through both the forward pass and t
 
 `FlaxTransformerBlock` in `flax_model.py` replicates `BenchmarkTransformerBlock` exactly:
 
+### PyTorch (`transformer_block.py`)
+
 ```
-# PyTorch (transformer_block.py)          # Flax (flax_model.py)
-x = norm1(x + attn(x, x, x)[0])          attn_out = MultiHeadDotProductAttention(...)(x, x)
-x = norm2(x + ff(x))                      x = LayerNorm()(x + attn_out)
-                                           ff = Dense(DIM_FEEDFORWARD)(x) → gelu → Dense(D_MODEL)(x)
-                                           x = LayerNorm()(x + ff)
+x = norm1(x + attn(x, x, x)[0])
+x = norm2(x + ff(x))
+```
+
+### Flax (`flax_model.py`)
+
+```
+attn_out = MultiHeadDotProductAttention(...)(x, x)
+x = LayerNorm()(x + attn_out)
+ff = Dense(DIM_FEEDFORWARD)(x) → gelu → Dense(D_MODEL)(x)
+x = LayerNorm()(x + ff)
 ```
 
 Both are **Post-LayerNorm** (norm applied after residual). The feedforward uses GELU.
