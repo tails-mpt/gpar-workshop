@@ -112,8 +112,8 @@ FP16 is not natively supported on TPU v5litepod; only FP32 and BF16 are tested.
 | 512 | 48,614 | 47,458 | 0.976× |
 | 1,024 | 97,749 | 94,522 | 0.967× |
 
-BF16 is consistently ~2.7% slower than FP32 on the TPU; the ratio is stable across all
-batch sizes, indicating this is a systematic overhead rather than measurement noise.
+BF16 is **1.4–3.3% slower** than FP32 on the TPU (average ~2.4% across batch sizes),
+indicating a systematic overhead rather than measurement noise.
 
 ---
 
@@ -127,7 +127,7 @@ GPU lines cluster in two bands — a lower FP32 band (~1,150–1,270 samples/sec
 upper FP16/BF16 band (~2,300–2,880 samples/sec) — both essentially flat across batch
 sizes. TPU lines rise steeply and linearly with batch; at batch=1024 the TPU FP32 line
 reaches ~97,700 samples/sec, dwarfing all GPU lines. TPU FP32 and TPU BF16 are nearly
-coincident, making the ~2.7% BF16 regression visible only at larger batches.
+coincident, making the 1.4–3.3% BF16 regression visible only at larger batches.
 
 ### Chart 2 — BF16 / FP32 speedup ratio (GPU vs TPU)
 
@@ -169,7 +169,7 @@ For new work on modern hardware (Ampere+), BF16 is simpler and numerically safer
 
 ### Why the TPU does not benefit from BF16
 
-The v5litepod BF16 throughput is **2.7% lower** than FP32 despite dedicated BF16 MXUs.
+The v5litepod BF16 throughput is **1.4–3.3% lower** (average ~2.4%) than FP32 despite dedicated BF16 MXUs.
 Likely causes:
 
 1. **Compile-time optimisation path.** XLA may choose a more aggressively fused FP32
@@ -228,7 +228,7 @@ point or complex dtype."* The INT8 MXU path (786 TOPS = 2× BF16 spec) was not e
 - **BF16 is simpler than FP16 in practice.** BF16's wider exponent range matches FP32's
   dynamic range, so gradient underflow does not occur and no `GradScaler` is needed.
 
-- **On the TPU v5litepod, BF16 is ~2.7% slower than FP32** at every batch size tested.
+- **On the TPU v5litepod, BF16 is 1.4–3.3% slower than FP32** (average ~2.4%) across all tested batch sizes.
   The BF16 MXU advantage does not materialise for this model shape. **Use FP32 on this
   TPU configuration until benchmarked otherwise.**
 
