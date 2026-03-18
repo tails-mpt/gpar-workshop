@@ -61,10 +61,12 @@ for backpropagation:
 Approximate activation memory per layer: **~112 MB**.
 Total model + optimizer state: **~48 MB per layer** (constant across depth).
 
-At batch=64, the activation memory dominates. With 23.7 GB GDDR6, the theoretical
-OOM boundary is roughly n_layers ≈ 23.7×1024 / 112 ≈ 217 layers — well beyond the
-sweep. In practice, PyTorch's memory allocator adds overhead, other model components
-consume baseline VRAM, and the actual OOM boundary depends on the driver version.
+At batch=64, the activation memory dominates. Using activation memory alone (112 MB/layer),
+the theoretical OOM boundary is roughly n_layers ≈ 23.7×1024 / 112 ≈ 217 layers.
+However, this figure **excludes gradients, Adam optimizer states, and allocator overhead**,
+which together account for an additional ~245 MB/layer observed empirically (see Results
+below). The operational OOM boundary from measured data is approximately 60 layers — see
+the Key Takeaways section for the reconciled estimate.
 
 ---
 
@@ -169,12 +171,15 @@ VRAM grows linearly with depth at ~357 MB per layer. At 24 layers, peak VRAM is
   all 24-layer steps without error on 16 GB HBM2.
 
 - **The GPU's estimated OOM boundary at batch=64 is ~60 layers** (extrapolating the
-  357 MB/layer growth rate to 23 GB). The TPU's boundary is likely similar or slightly
-  less due to lower total HBM capacity (16 GB).
+  measured 357 MB/layer growth rate to 23 GB). Note that this differs from the
+  theoretical 217-layer figure in the Benchmark Configuration section: the theoretical
+  estimate counts only activation memory (112 MB/layer) and omits gradients, Adam
+  states, and allocator overhead. The measured 357 MB/layer captures the full
+  per-layer training cost; **~60 layers is the operationally correct estimate**.
 
 - **VRAM cost per encoder block at batch=64: ~357 MB** (activations + gradients +
-  Adam moments). At batch=256, this scales 4× to ~1.4 GB/layer; at batch=512 to
-  ~2.8 GB/layer — OOM would occur within the sweep at those batch sizes.
+  Adam moments + allocator overhead). At batch=256, this scales 4× to ~1.4 GB/layer;
+  at batch=512 to ~2.8 GB/layer — OOM would occur within the sweep at those batch sizes.
 
 - **Throughput scales as 1/n_layers on both devices.** Each additional encoder block
   adds a fixed compute cost per step. The GPU curve has a slight positive deviation

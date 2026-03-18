@@ -14,8 +14,8 @@ The Transformer encoder block from Session 1 is re-run across six batch sizes
 - **INT8** — 8-bit integer quantisation (GPU: dynamic quantisation on CPU; TPU: errored)
 
 The outcome diverges between devices and between formats. On the GPU, FP16 and BF16 each
-deliver roughly **2.0–2.1× throughput** over FP32 with a simultaneous **29% VRAM
-reduction**. On the TPU, which advertises native BF16 MXUs, BF16 runs **~2.7% slower**
+deliver roughly **2.0–2.1× throughput** over FP32 with a simultaneous **21–29% VRAM
+reduction** (scaling with batch size: ~21% at batch=32, converging to ~29% at batch≥256). On the TPU, which advertises native BF16 MXUs, BF16 runs **~2.7% slower**
 than FP32 on v5litepod in this configuration. GPU INT8 (`torch.ao.quantization.quantize_dynamic`)
 executes on CPU rather than GPU, yielding ~400–498 samples/sec — a measurement of
 CPU-based dynamic quantisation, not GPU INT8 inference.
@@ -43,7 +43,7 @@ Same devices as Sessions 1–4. See [`session_1.md`](session_1.md) for full hard
 | PyTorch | 2.10.0+cu128 | 2.9.0+cu128 |
 | torch_xla | — | 2.9.0 |
 | Device string | `cuda:0` | `xla:0` |
-| Run timestamp (FP32/FP16/BF16) | 2026-03-04T01:18 UTC | 2026-02-27T18:21 UTC |
+| Run timestamp (FP32/FP16/BF16) | 2026-03-04T01:18 UTC | 2026-03-04T01:24 UTC |
 
 ---
 
@@ -88,16 +88,22 @@ Same devices as Sessions 1–4. See [`session_1.md`](session_1.md) for full hard
 | 512 | 1,202 | 2,516 | 2,447 | 2.09× | 2.04× |
 | 1,024 | 1,146 | 2,410 | 2,323 | 2.10× | 2.03× |
 
-### GPU — Peak VRAM (MB) at batch=256
+### GPU — Peak VRAM (MB) — all batch sizes
 
-| Dtype | VRAM (MB) | Relative to FP32 |
-|---|---:|---:|
-| FP32 | 1,852 | 1.00× |
-| FP16 | 1,319 | 0.71× |
-| BF16 | 1,319 | 0.71× |
+| Batch | FP32 (MB) | FP16 (MB) | BF16 (MB) | FP16 saving | BF16 saving |
+|------:|----------:|----------:|----------:|------------:|------------:|
+| 32 | 296 | 233 | 232 | 21.2% | 21.6% |
+| 64 | 531 | 400 | 400 | 24.6% | 24.6% |
+| 128 | 980 | 715 | 716 | 27.0% | 26.9% |
+| 256 | 1,852 | 1,319 | 1,319 | 28.8% | 28.8% |
+| 512 | 3,597 | 2,549 | 2,549 | 29.1% | 29.1% |
+| 1,024 | 7,087 | 5,033 | 5,033 | 29.0% | 29.0% |
 
-VRAM reduction is identical for FP16 and BF16; the 29% saving holds across all tested
-batch sizes.
+VRAM reduction is identical for FP16 and BF16 at every batch size. The saving is
+batch-dependent: **~21% at batch=32**, growing to **~29% at batch≥256** where it
+stabilises. At small batch sizes, the fixed FP32 overhead (optimizer states, which
+are not halved under autocast) dilutes the activation-level savings; as batch size
+grows, activation memory dominates and the saving approaches ~29%.
 
 ### TPU — Throughput (samples/sec)
 
@@ -143,8 +149,9 @@ devices immediate.
 ![VRAM chart](assets/session_5_chart_vram.png)
 
 Three lines track peak VRAM from batch=32 to batch=1024. FP32 is the highest. FP16 and
-BF16 are coincident ~29% lower. All three lines grow with batch size, but the gap between
-FP32 and the reduced-precision lines remains proportionally constant.
+BF16 are coincident throughout. The relative gap between FP32 and the reduced-precision
+lines narrows from ~21% at batch=32 to ~29% at batch≥256 as activation memory becomes
+the dominant term and fixed FP32 overhead is diluted.
 
 ---
 
@@ -157,8 +164,11 @@ multiplications at roughly twice the FLOP/s of FP32 operations. A Transformer bl
 forward and backward passes are dominated by matrix multiplications, so the Tensor Core
 advantage maps almost directly onto end-to-end training throughput.
 
-The VRAM reduction (29%) follows directly from halving the bytes per parameter, gradient,
-and optimizer state. In practice this enables a larger effective batch size or deeper model.
+The VRAM reduction (21–29%, batch-dependent) primarily reflects halved activation memory
+in the forward pass under autocast. Optimizer states (Adam momentum and variance) are kept
+in FP32 and are not reduced; this is why the saving is lower at small batch sizes (where
+fixed FP32 state dominates) and converges to ~29% at large batch (where activations dominate).
+In practice this enables a larger effective batch size or deeper model, especially at batch≥64.
 
 ### Why FP16 requires a GradScaler but BF16 does not
 
@@ -223,7 +233,7 @@ point or complex dtype."* The INT8 MXU path (786 TOPS = 2× BF16 spec) was not e
 
 - **On the GPU (NVIDIA L4), FP16 and BF16 each provide a consistent ~2.0–2.1× throughput
   gain over FP32** across all tested batch sizes. Both formats simultaneously reduce peak
-  VRAM by ~29%, enabling larger batches or bigger models at no cost.
+  VRAM by ~21–29% (batch-dependent), enabling larger batches or bigger models at no cost.
 
 - **BF16 is simpler than FP16 in practice.** BF16's wider exponent range matches FP32's
   dynamic range, so gradient underflow does not occur and no `GradScaler` is needed.
@@ -249,7 +259,7 @@ point or complex dtype."* The INT8 MXU path (786 TOPS = 2× BF16 spec) was not e
 ## Decision Rule from This Session
 
 - **GPU workloads:** always use BF16 (or FP16 with a GradScaler on older hardware). The
-  ~2× throughput and 29% VRAM savings are effectively free.
+  ~2× throughput and 21–29% VRAM savings are effectively free.
 - **TPU workloads:** benchmark before assuming BF16 helps. On v5litepod (d_model=512,
   seq_len=128), FP32 is faster. Revisit if using v4 TPUs, larger model dimensions, or
   dedicated BF16-only inference paths.
