@@ -1,7 +1,7 @@
 {
   "hardware": "TPU",
   "device_name": "TPU",
-  "session": "6",
+  "session": "3",
   "batch_size": 64,
   "seq_len": 128,
   "n_layers_sweep": [
