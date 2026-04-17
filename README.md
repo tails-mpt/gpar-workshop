@@ -1,8 +1,18 @@
-# GPU vs TPU for Transformer Workloads
+# GPU vs TPU for Transformers: A Practitioner's Benchmark
 
-A hands-on benchmark workshop that pits an NVIDIA L4 GPU against a Google TPU v5e
-on a single Transformer encoder block. The goal is to figure out when each device
-actually wins — not on paper, but measured end-to-end on GCP at real prices.
+A hands-on benchmark workshop from [ThoughtWorks AI Research](https://huggingface.co/thoughtworks).
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-ee4c2c.svg?logo=pytorch&logoColor=white)](https://pytorch.org/)
+[![JAX](https://img.shields.io/badge/JAX-TPU-orange.svg)](https://github.com/google/jax)
+[![NVIDIA L4](https://img.shields.io/badge/NVIDIA-L4-76b900.svg?logo=nvidia&logoColor=white)](https://cloud.google.com/compute/docs/gpus)
+[![Google TPU v5e](https://img.shields.io/badge/Google_TPU-v5e-4285F4.svg?logo=google&logoColor=white)](https://cloud.google.com/tpu)
+[![Jupyter](https://img.shields.io/badge/Jupyter-Notebooks-F37626.svg?logo=jupyter&logoColor=white)](https://jupyter.org/)
+
+Pits an NVIDIA L4 GPU against a Google TPU v5e on a single Transformer encoder
+block. The goal: figure out when each device actually wins — not on paper, but
+measured end-to-end on GCP at real prices.
 
 ## The short version
 
